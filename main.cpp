@@ -10,6 +10,7 @@
 #include "main.h"
 #include "Linear2Db.h"
 #include "pico/stdlib.h"
+#include "pico/util/queue.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
@@ -24,6 +25,7 @@ static constexpr int  ADC_BUF_LEN     = 20;
 uint     dma_chan[2];
 int      buf_idx = 0;
 uint16_t dma_buf[2][ADC_BUF_LEN];
+int      dma_irq_count = 0;
 
 dma_channel_config cfg[2];
 
@@ -31,9 +33,16 @@ static constexpr int ADC_BITS = 12;
 static constexpr float ADC_CALIB_A = 1.05;
 static constexpr float ADC_CALIB_B = - 0.025;
 
-// dB level meter
+// dB level conversion
 std::vector<float> dbScale{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};
 level_meter::Linear2Db linear2Db(2, dbScale);
+
+static queue_t _level_queue;
+static constexpr uint LEVEL_QUEUE_LENGTH = 4;
+typedef struct _level_item_t {
+    int id;
+    int level[2];
+} level_item_t;
 
 // prototype declaration
 void __isr __time_critical_func(level_meter_dma_irq_handler)();
@@ -42,6 +51,7 @@ int main()
 {
     stdio_init_all();
 
+    // ADC setup
     adc_gpio_init(PIN_ADC_BASE + PIN_ADC_OFFSET0);
     adc_gpio_init(PIN_ADC_BASE + PIN_ADC_OFFSET1);
 
@@ -58,8 +68,7 @@ int main()
     adc_set_clkdiv(96*500);  // sampling rate 1 KHz (48MHz x cycle)
     adc_set_round_robin((1 << PIN_ADC_OFFSET0) | (1 << PIN_ADC_OFFSET1));
 
-    printf("Arming DMA\n");
-    sleep_ms(1000);
+    sleep_ms(100);
 
     // Set up the DMA to start transferring data as soon as it appears in FIFO
     dma_chan[0] = dma_claim_unused_channel(true);
@@ -91,6 +100,9 @@ int main()
         );
     }
 
+    // Queue setup
+    queue_init(&_level_queue, sizeof(level_item_t), LEVEL_QUEUE_LENGTH);
+
     // Start DMA
     dma_channel_start(dma_chan[buf_idx]);
 
@@ -98,7 +110,13 @@ int main()
     adc_select_input(PIN_ADC_OFFSET0);  // start round-robin
     adc_run(true);
 
-    while (true)  {}
+    while (true) {
+        while (queue_get_level(&_level_queue) > 0) {
+            level_item_t levelItem;
+            queue_remove_blocking(&_level_queue, &levelItem);
+            printf("level %d %d\n", (int) levelItem.level[0], (int) levelItem.level[1]);
+        }
+    }
 
     sleep_ms(100);
 
@@ -148,7 +166,11 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
 
     unsigned int level[2];
     linear2Db.getLevel(norm, level);
-    printf("level %d %d\n", (int) level[0], (int) level[1]);
+    level_item_t levelItem;
+    levelItem.id = dma_irq_count;
+    levelItem.level[0] = level[0];
+    levelItem.level[1] = level[1];
+    queue_try_add(&_level_queue, &levelItem);
 
     dma_channel_configure(dma_chan[irq_buf_idx], &cfg[irq_buf_idx],
         dma_buf[irq_buf_idx],  // dst
@@ -156,4 +178,6 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
         ADC_BUF_LEN,           // transfer count
         false                  // start immediately
     );
+
+    dma_irq_count++;
 }
