@@ -7,6 +7,7 @@
 #include <cstdio>
 
 #include "main.h"
+#include "Linear2Db.h"
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
@@ -21,9 +22,17 @@ static constexpr int  ADC_BUF_LEN     = 20;
 
 uint     dma_chan[2];
 int      buf_idx = 0;
-uint16_t capture_buf[2][ADC_BUF_LEN];
+uint16_t dma_buf[2][ADC_BUF_LEN];
 
 dma_channel_config cfg[2];
+
+static constexpr int ADC_BITS = 12;
+static constexpr float ADC_CALIB_A = 1.05;
+static constexpr float ADC_CALIB_B = - 0.025;
+
+// dB level meter
+std::vector<float> dbScale{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};
+level_meter::Linear2Db linear2Db(2, dbScale);
 
 // prototype declaration
 void __isr __time_critical_func(level_meter_dma_irq_handler)();
@@ -74,7 +83,7 @@ int main()
 
     for (int i = 0; i < 2; i++) {
         dma_channel_configure(dma_chan[i], &cfg[i],
-            capture_buf[i],  // dst
+            dma_buf[i],  // dst
             &adc_hw->fifo,   // src
             ADC_BUF_LEN,   // transfer count
             false            // start immediately
@@ -88,6 +97,16 @@ int main()
     adc_select_input(PIN_ADC_OFFSET0);  // start round-robin
     adc_run(true);
 
+    /*
+    float in[2] = {1.0, 0.00169};
+    int out[2] = {};
+
+    linear2Db.getLevel(in, out);
+
+    printf("%d %d\n", out[0], out[1]);
+
+    return 0;
+    */
     while (true)  {}
 
     sleep_ms(100);
@@ -114,19 +133,36 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
     }
     if (irq_buf_idx >= 2) { return; }
 
-    printf("IRQ buf %d\n", irq_buf_idx);
-
-    // Print samples to stdout so you can display them in pyplot, excel, matlab
-    for (int i = 0; i < ADC_BUF_LEN; ++i) {
-        printf("%03x, ", (int) capture_buf[irq_buf_idx][i]);
-        if (i % 10 == 9)
-            printf("\n");
+    float norm[2];
+    for (int i = 0; i < 2; i++) {
+        // insert keeping sorted
+        std::vector<uint16_t> buf;
+        for (int j = 0; j < ADC_BUF_LEN; j += 2) {
+            uint16_t val = dma_buf[irq_buf_idx][j + i];
+            auto it = std::lower_bound(buf.cbegin(), buf.cend(), val);
+            buf.insert(it, val);
+        }
+        // pick center samples and average
+        const int start = ADC_BUF_LEN / 2 / 4;
+        const int end   = ADC_BUF_LEN / 2 * 3 / 4;
+        uint16_t sum = 0;
+        for (int j = start; j < end; j++) {
+            sum += buf[j];
+        }
+        // nomalize
+        norm[i] = (float) sum / (end - start) / (1 << ADC_BITS);
+        // calibration
+        norm[i] = ADC_CALIB_A * norm[i] + ADC_CALIB_B;
     }
 
+    unsigned int level[2];
+    linear2Db.getLevel(norm, level);
+    printf("level %d %d\n", (int) level[0], (int) level[1]);
+
     dma_channel_configure(dma_chan[irq_buf_idx], &cfg[irq_buf_idx],
-        capture_buf[irq_buf_idx],  // dst
-        &adc_hw->fifo,             // src
-        ADC_BUF_LEN,             // transfer count
-        false                      // start immediately
+        dma_buf[irq_buf_idx],  // dst
+        &adc_hw->fifo,         // src
+        ADC_BUF_LEN,           // transfer count
+        false                  // start immediately
     );
 }
