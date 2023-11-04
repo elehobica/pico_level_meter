@@ -7,6 +7,7 @@
 #include "Linear2Db.h"
 
 #include <cmath>
+#include <algorithm>
 
 namespace level_meter
 {
@@ -34,32 +35,12 @@ float Linear2Db::_db2Linear(float db)
     return pow(10.0, db / 10.0);
 }
 
-unsigned int Linear2Db::_findPos(float value, const std::vector<float>& scale)
-{
-    auto low = scale.begin();
-    auto mid = low + scale.size() / 2;
-    auto high = scale.end() - 1;
-
-    if (value < *low) {
-        return 0;
-    } else if (value >= *high) {
-        return scale.size();
-    } if (value <= *mid) {
-        std::vector<float> nextDbScale(low, mid);
-        return _findPos(value, nextDbScale);
-    } else {
-        std::vector<float> nextDbScale(mid, high);
-        return scale.size() / 2 + _findPos(value, nextDbScale);
-    }
-}
-
 void Linear2Db::getLevel(const float in[], unsigned int out[])
 {
     for (int i = 0; i < _numCh; i++) {
-        float value = in[i];
-        if (value < 0.0) value = 0.0;
-        if (value > 1.0) value = 1.0;
-        out[i] = _findPos(in[i], _linearScale);
+        // use upper_bound to find the position (not lower_bound because of 0 < linear value <= 1.0)
+        auto it = std::upper_bound(_linearScale.cbegin(), _linearScale.cend(), in[i]);
+        out[i] = std::distance(_linearScale.cbegin(), it);
     }
 }
 

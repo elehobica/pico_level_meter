@@ -5,6 +5,7 @@
 /------------------------------------------------------*/
 
 #include <cstdio>
+#include <algorithm>
 
 #include "main.h"
 #include "Linear2Db.h"
@@ -97,16 +98,6 @@ int main()
     adc_select_input(PIN_ADC_OFFSET0);  // start round-robin
     adc_run(true);
 
-    /*
-    float in[2] = {1.0, 0.00169};
-    int out[2] = {};
-
-    linear2Db.getLevel(in, out);
-
-    printf("%d %d\n", out[0], out[1]);
-
-    return 0;
-    */
     while (true)  {}
 
     sleep_ms(100);
@@ -139,7 +130,7 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
         std::vector<uint16_t> buf;
         for (int j = 0; j < ADC_BUF_LEN; j += 2) {
             uint16_t val = dma_buf[irq_buf_idx][j + i];
-            auto it = std::lower_bound(buf.cbegin(), buf.cend(), val);
+            auto it = std::upper_bound(buf.cbegin(), buf.cend(), val);
             buf.insert(it, val);
         }
         // pick center samples and average

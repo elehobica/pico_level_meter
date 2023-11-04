@@ -47,6 +47,5 @@ protected:
     int _numCh;
     std::vector<float> _linearScale;
     float _db2Linear(float db);
-    unsigned int _findPos(float value, const std::vector<float>& dbScale);
 };
 }
