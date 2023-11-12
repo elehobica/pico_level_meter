@@ -14,7 +14,7 @@ namespace level_meter
 /**
 * class for converting the linear values to the levels in dB scale
 */
-class Linear2Db
+class conv_dB_level
 {
 public:
     /**
@@ -23,29 +23,29 @@ public:
     static const std::vector<float> DEFAULT_DB_SCALE;
 
     /**
-    * constructor of Linear2Db
+    * constructor of conv_dB_level
     *
-    * @param[in] numCh the number of channels
-    * @param[in] dbScale the series of dB scale in vector, which needs to be ascending order
+    * @param[in] num_ch the number of channels
+    * @param[in] db_scale the series of dB scale in vector, which needs to be ascending order
     */
-    Linear2Db(const int numCh = 2, const std::vector<float>& dbScale = DEFAULT_DB_SCALE);
+    conv_dB_level(const int num_ch = 2, const std::vector<float>& db_scale = DEFAULT_DB_SCALE);
 
     /**
-    * destructor of Linear2Db
+    * destructor of conv_dB_level
     */
-    virtual ~Linear2Db();
+    virtual ~conv_dB_level();
 
     /**
-    * constructor of Linear2Db
+    * constructor of conv_dB_level
     *
     * @param[in] in the linear input array
     * @param[out] out the level array corresponsing to the series of dB scale
     */
-    void getLevel(const float in[], unsigned int out[]);
+    void get_level(const float in[], unsigned int out[]);
 
 protected:
-    int _numCh;
-    std::vector<float> _linearScale;
-    float _db2Linear(float db);
+    int _num_ch;
+    std::vector<float> _linear_scale;
+    float _db_to_linear(float db);
 };
 }

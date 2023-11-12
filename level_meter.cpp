@@ -16,7 +16,7 @@
 #include <hardware/irq.h>
 #include <hardware/pwm.h>
 
-#include "Linear2Db.h"
+#include "conv_dB_level.h"
 
 namespace level_meter
 {
@@ -39,7 +39,7 @@ static float ADC_CALIB_A[NUM_ADC_CH];
 static float ADC_CALIB_B[NUM_ADC_CH];
 
 // dB level conversion
-level_meter::Linear2Db *linear2Db;
+level_meter::conv_dB_level *dBLevel;
 
 static queue_t _level_queue;
 static constexpr uint LEVEL_QUEUE_LENGTH = 4;
@@ -64,7 +64,7 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)();
 void init(const std::vector<float>& dbScale)
 {
     // dB level conversion
-    linear2Db = new level_meter::Linear2Db(NUM_ADC_CH, dbScale);
+    dBLevel = new level_meter::conv_dB_level(NUM_ADC_CH, dbScale);
 
     // ADC setup
     for (int i = 0; i < NUM_ADC_CH; i++) {
@@ -224,7 +224,7 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
     }
 
     unsigned int level[NUM_ADC_CH];
-    linear2Db->getLevel(norm, level);
+    dBLevel->get_level(norm, level);
     level_item_t levelItem;
     levelItem.id = dma_irq_count;
     for (int i = 0; i < NUM_ADC_CH; i++) {

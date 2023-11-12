@@ -17,7 +17,7 @@ add_subdirectory(st7735_80x160)
 add_executable(${PROJECT_NAME}
     main.cpp
     level_meter.cpp
-    Linear2Db.cpp
+    conv_dB_level.cpp
 )
 
 # pull in common dependencies
