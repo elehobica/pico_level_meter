@@ -6,14 +6,17 @@
 
 #include "level_meter.h"
 
+#include <cstdio>
 #include <algorithm>
 
+#include <pico/stdlib.h>
+#include <pico/util/queue.h>
+#include <hardware/adc.h>
+#include <hardware/dma.h>
+#include <hardware/irq.h>
+#include <hardware/pwm.h>
+
 #include "Linear2Db.h"
-#include "pico/stdlib.h"
-#include "pico/util/queue.h"
-#include "hardware/adc.h"
-#include "hardware/dma.h"
-#include "hardware/irq.h"
 
 namespace level_meter
 {
@@ -31,28 +34,60 @@ int      dma_irq_count = 0;
 dma_channel_config cfg[2];
 
 static constexpr int ADC_BITS = 12;
-static constexpr float ADC_CALIB_A = 1.05;
-static constexpr float ADC_CALIB_B = - 0.025;
+static constexpr float ADC_CALIB_ZERO_MARGIN = 1.6;
+static float ADC_CALIB_A[NUM_ADC_CH];
+static float ADC_CALIB_B[NUM_ADC_CH];
 
 // dB level conversion
-std::vector<float> dbScale{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};
-level_meter::Linear2Db linear2Db(NUM_ADC_CH, dbScale);
+level_meter::Linear2Db *linear2Db;
 
 static queue_t _level_queue;
 static constexpr uint LEVEL_QUEUE_LENGTH = 4;
 typedef struct _level_item_t {
     int id;
+    int rawValue[NUM_ADC_CH];
     int level[NUM_ADC_CH];
 } level_item_t;
+
+enum class State {
+    INIT,
+    CALIBRATION,
+    RUNNING
+};
+static State state = State::INIT;
+static constexpr int NUM_CALIB_COUNT = 10;
+static int calibCount;
 
 // prototype declaration
 void __isr __time_critical_func(level_meter_dma_irq_handler)();
 
-void init()
+void init(const std::vector<float>& dbScale)
 {
+    // dB level conversion
+    linear2Db = new level_meter::Linear2Db(NUM_ADC_CH, dbScale);
+
     // ADC setup
     for (int i = 0; i < NUM_ADC_CH; i++) {
-        adc_gpio_init(PIN_ADC_BASE + PIN_ADC_OFFSET + i);
+        uint pin = PIN_ADC_BASE + PIN_ADC_OFFSET + i;
+        adc_gpio_init(pin);
+        // force ADC input signal to zero for calibration
+        gpio_init(pin);
+        gpio_set_dir(pin, GPIO_OUT);
+        gpio_put(pin, 0);
+        // reset calibration paramteters
+        calibCount = 0;
+        ADC_CALIB_A[i] = 1.0;
+        ADC_CALIB_B[i] = 0.0;
+        /*
+        if (i == 0) {
+            gpio_set_function(pin, GPIO_FUNC_PWM);
+            uint sliceNum = pwm_gpio_to_slice_num(pin);
+            pwm_config config = pwm_get_default_config();
+            pwm_init(sliceNum, &config, true);
+            //pwm_set_gpio_level(pin, (uint16_t) (0.5 * 65535));
+            pwm_set_gpio_level(pin, 65535/2);
+        }
+        */
     }
 
     adc_init();
@@ -102,6 +137,9 @@ void init()
 
     // Queue setup
     queue_init(&_level_queue, sizeof(level_item_t), LEVEL_QUEUE_LENGTH);
+
+    // State to calibration
+    state = State::CALIBRATION;
 }
 void start()
 {
@@ -164,19 +202,37 @@ void __isr __time_critical_func(level_meter_dma_irq_handler)()
             sum += buf[j];
         }
         // nomalize
-        norm[i] = (float) sum / (end - start) / (1 << ADC_BITS);
-        // calibration
-        norm[i] = ADC_CALIB_A * norm[i] + ADC_CALIB_B;
+        float meanAve = (float) sum / (end - start);
+        norm[i] = meanAve / ((1 << ADC_BITS) - 1);
+        // apply calibration
+        norm[i] = ADC_CALIB_A[i] * norm[i] + ADC_CALIB_B[i];
+    }
+
+    // Calibration
+    if (state == State::CALIBRATION && ++calibCount >= NUM_CALIB_COUNT) {
+        for (int i = 0; i < NUM_ADC_CH; i++) {
+            // calculate calibration parameters
+            float intercept = -norm[i] * ADC_CALIB_ZERO_MARGIN;
+            ADC_CALIB_A[i] = 1.0 / (1.0 + intercept);
+            ADC_CALIB_B[i] = intercept;
+            // release force input signal
+            uint pin = PIN_ADC_BASE + PIN_ADC_OFFSET + i;
+            gpio_set_dir(pin, GPIO_IN);
+        }
+        // state transition to RUNNING
+        state = State::RUNNING;
     }
 
     unsigned int level[NUM_ADC_CH];
-    linear2Db.getLevel(norm, level);
+    linear2Db->getLevel(norm, level);
     level_item_t levelItem;
     levelItem.id = dma_irq_count;
     for (int i = 0; i < NUM_ADC_CH; i++) {
         levelItem.level[i] = level[i];
     }
-    queue_try_add(&_level_queue, &levelItem);
+    if (!queue_try_add(&_level_queue, &levelItem)) {
+        printf("failed to add queue\n");
+    }
 
     dma_channel_configure(dma_chan[irq_buf_idx], &cfg[irq_buf_idx],
         dma_buf[irq_buf_idx],  // dst

@@ -7,14 +7,33 @@
 #include "level_meter.h"
 
 #include <cstdio>
+#include <algorithm>
 
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "st7735_80x160/my_lcd.h"
 
+// dbScale (max - min <= 40, otherwise lowest scale has no meaning against 12bit ADC resolution)
+//static const std::vector<float> dbScale{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};  // default
+static const std::vector<float> dbScale{-30, -24, -22, -20, -18, -16, -14, -12, -10, -8, -6, -4, -2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+static const int NUM_LEVELS = dbScale.size();
+static int greenTh;
+static int redTh;
+
+void prepareLevel()
+{
+    {
+        auto it = std::upper_bound(dbScale.cbegin(), dbScale.cend(), 0);
+        greenTh = std::distance(dbScale.cbegin(), it);
+    }
+    {
+        auto it = std::upper_bound(dbScale.cbegin(), dbScale.cend(), 5);
+        redTh = std::distance(dbScale.cbegin(), it);
+    }
+}
+
 void drawLevel(int ch, int level)
 {
-    int NUM_LEVELS = 11;
     u16 Y_CH_HEIGHT = 10;
     u16 Y_OFFSET = LCD_HEIGHT / 2 - Y_CH_HEIGHT;
     u16 width = LCD_WIDTH / NUM_LEVELS;
@@ -22,7 +41,7 @@ void drawLevel(int ch, int level)
 
     for (int i = 0; i < NUM_LEVELS; i++) {
         if (i < level) {
-            u16 color = (i < 6) ? GREEN : (i < 9) ? BRRED : RED;
+            u16 color = (i < greenTh) ? GREEN : (i < redTh) ? BRRED : RED;
             LCD_Fill(width*i, Y_OFFSET + Y_CH_HEIGHT*ch, width*i + width-2, Y_OFFSET + Y_CH_HEIGHT*ch + 5, color);
         } else {
             LCD_Fill(width*i, Y_OFFSET + Y_CH_HEIGHT*ch, width*i + width-2, Y_OFFSET + Y_CH_HEIGHT*ch + 5, DARKGRAY);
@@ -50,9 +69,11 @@ int main()
     LCD_Clear(BLACK);
     BACK_COLOR=BLACK;
 
+
     // level meter
-    level_meter::init();
+    level_meter::init(dbScale);
     level_meter::start();
+    prepareLevel();
 
     while (true) {
         int level[NUM_ADC_CH];

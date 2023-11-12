@@ -6,13 +6,14 @@
 
 #include "Linear2Db.h"
 
+#include <cstdio>
 #include <cmath>
 #include <algorithm>
 
 namespace level_meter
 {
 
-const std::vector<float> DEFAULT_DB_SCALE{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};
+const std::vector<float> Linear2Db::DEFAULT_DB_SCALE{-20, -15, -10, -6, -4, -2, 0, 1, 2, 6, 8};
 
 Linear2Db::Linear2Db(const int numCh, const std::vector<float>& dbScale) :
     _numCh(numCh),
@@ -23,7 +24,9 @@ Linear2Db::Linear2Db(const int numCh, const std::vector<float>& dbScale) :
     float max = _db2Linear(*it0);
     for (auto it1 = _linearScale.rbegin(); it1 != _linearScale.rend(); it0++, it1++) {
         *it1 = _db2Linear(*it0) / max;
+        printf("%d ", (int) (*it1 * 4095));
     }
+    printf("\n");
 }
 
 Linear2Db::~Linear2Db()
