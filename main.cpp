@@ -34,17 +34,17 @@ void prepareLevel()
 
 void drawLevel(int ch, int level)
 {
-    u16 Y_CH_HEIGHT = 10;
-    u16 Y_OFFSET = LCD_HEIGHT / 2 - Y_CH_HEIGHT;
-    u16 width = LCD_WIDTH / NUM_LEVELS;
-    u16 height = 5;
+    const u16 Y_CH_HEIGHT = 10;
+    const u16 Y_OFFSET = LCD_HEIGHT / 2 - Y_CH_HEIGHT;
+    const u16 WIDTH = LCD_WIDTH / NUM_LEVELS;
+    const u16 X_OFFSET = (LCD_WIDTH -  WIDTH * NUM_LEVELS) / 2;
 
     for (int i = 0; i < NUM_LEVELS; i++) {
-        if (i < level) {
+        if (i == 0 || i < level) {  // level0 is always on
             u16 color = (i < greenTh) ? GREEN : (i < redTh) ? BRRED : RED;
-            LCD_Fill(width*i, Y_OFFSET + Y_CH_HEIGHT*ch, width*i + width-2, Y_OFFSET + Y_CH_HEIGHT*ch + 5, color);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-2 + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + 5, color);
         } else {
-            LCD_Fill(width*i, Y_OFFSET + Y_CH_HEIGHT*ch, width*i + width-2, Y_OFFSET + Y_CH_HEIGHT*ch + 5, DARKGRAY);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-2 + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + 5, DARKGRAY);
         }
     }
 }

@@ -143,7 +143,6 @@ void init(const std::vector<float>& dbScale)
 }
 void start()
 {
-
     // Start DMA
     dma_channel_start(dma_chan[buf_idx]);
 

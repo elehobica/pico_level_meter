@@ -6,7 +6,6 @@
 
 #include "conv_dB_level.h"
 
-#include <cstdio>
 #include <cmath>
 #include <algorithm>
 
@@ -24,9 +23,7 @@ conv_dB_level::conv_dB_level(const int num_ch, const std::vector<float>& db_scal
     float max = _db_to_linear(*it0);
     for (auto it1 = _linear_scale.rbegin(); it1 != _linear_scale.rend(); it0++, it1++) {
         *it1 = _db_to_linear(*it0) / max;
-        printf("%d ", (int) (*it1 * 4095));
     }
-    printf("\n");
 }
 
 conv_dB_level::~conv_dB_level()
