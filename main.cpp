@@ -20,6 +20,8 @@ static const int NUM_LEVELS = dbScale.size();
 static int greenTh;
 static int redTh;
 
+#define PEAK_HOLD
+
 void prepareLevel()
 {
     {
@@ -32,7 +34,7 @@ void prepareLevel()
     }
 }
 
-void drawLevel(int ch, int level)
+void drawLevelMeter(int ch, int level, int peakHold = -1)
 {
     const u16 Y_CH_HEIGHT = 10;
     const u16 Y_OFFSET = LCD_HEIGHT / 2 - Y_CH_HEIGHT;
@@ -40,7 +42,7 @@ void drawLevel(int ch, int level)
     const u16 X_OFFSET = (LCD_WIDTH -  WIDTH * NUM_LEVELS) / 2;
 
     for (int i = 0; i < NUM_LEVELS; i++) {
-        if (i == 0 || i < level) {  // level0 is always on
+        if (i == 0 || i < level || i == peakHold) {  // level0 is always on
             u16 color = (i < greenTh) ? GREEN : (i < redTh) ? BRRED : RED;
             LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-2 + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + 5, color);
         } else {
@@ -77,10 +79,19 @@ int main()
 
     while (true) {
         int level[NUM_ADC_CH];
+#if defined(PEAK_HOLD)
+        int peakHold[NUM_ADC_CH];
+        if (level_meter::get_level(level, peakHold)) {
+#else //defined(PEAK_HOLD)
         if (level_meter::get_level(level)) {
+#endif
             printf("level %d %d\n", level[0], level[1]);
             for (int i = 0; i < NUM_ADC_CH; i++) {
-                drawLevel(i, level[i]);
+#if defined(PEAK_HOLD)
+                drawLevelMeter(i, level[i], peakHold[i]);
+#else //defined(PEAK_HOLD)
+                drawLevelMeter(i, level[i]);
+#endif
             }
         }
     }

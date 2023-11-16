@@ -26,12 +26,12 @@ namespace level_meter
 static constexpr uint PIN_ADC_BASE    = 26;  // determined by rp2040 (don't change this)
 static constexpr int  ADC_BUF_LEN     = 10 * NUM_ADC_CH;
 
-uint     dma_chan[2];  // double buffer
-int      buf_idx = 0;
-uint16_t dma_buf[2][ADC_BUF_LEN];
-int      dma_irq_count = 0;
+static uint     dma_chan[2];  // double buffer
+static int      buf_idx = 0;
+static uint16_t dma_buf[2][ADC_BUF_LEN];
+static int      dma_irq_count = 0;
 
-dma_channel_config cfg[2];
+static dma_channel_config cfg[2];
 
 static constexpr int ADC_BITS = 12;
 static constexpr float ADC_CALIB_ZERO_MARGIN = 1.6;
@@ -58,13 +58,17 @@ static State state = State::INIT;
 static constexpr int NUM_CALIB_COUNT = 10;
 static int calibCount;
 
-// prototype declaration
-void __isr __time_critical_func(level_meter_dma_irq_handler)();
+static constexpr int PEAK_HOLD_TIMES = 50;
+static int peak_hold_count[NUM_ADC_CH];
+static int peak_hold_level[NUM_ADC_CH];
 
-void init(const std::vector<float>& dbScale)
+// prototype declaration
+static void __isr __time_critical_func(level_meter_dma_irq_handler)();
+
+void init(const std::vector<float>& db_scale)
 {
     // dB level conversion
-    dBLevel = new level_meter::conv_dB_level(NUM_ADC_CH, dbScale);
+    dBLevel = new level_meter::conv_dB_level(NUM_ADC_CH, db_scale);
 
     // ADC setup
     for (int i = 0; i < NUM_ADC_CH; i++) {
@@ -78,16 +82,6 @@ void init(const std::vector<float>& dbScale)
         calibCount = 0;
         ADC_CALIB_A[i] = 1.0;
         ADC_CALIB_B[i] = 0.0;
-        /*
-        if (i == 0) {
-            gpio_set_function(pin, GPIO_FUNC_PWM);
-            uint sliceNum = pwm_gpio_to_slice_num(pin);
-            pwm_config config = pwm_get_default_config();
-            pwm_init(sliceNum, &config, true);
-            //pwm_set_gpio_level(pin, (uint16_t) (0.5 * 65535));
-            pwm_set_gpio_level(pin, 65535/2);
-        }
-        */
     }
 
     adc_init();
@@ -150,13 +144,28 @@ void start()
     adc_run(true);
 }
 
-bool get_level(int level[NUM_ADC_CH])
+bool get_level(int level[NUM_ADC_CH], int peak_hold[NUM_ADC_CH])
 {
     if (queue_get_level(&_level_queue) > 0) {
+        // Get Level
         level_item_t levelItem;
         queue_remove_blocking(&_level_queue, &levelItem);
         for (int i = 0; i < NUM_ADC_CH; i++) {
             level[i] = levelItem.level[i];
+        }
+        // Peak Hold
+        if (peak_hold != nullptr) {
+            for (int i = 0; i < NUM_ADC_CH; i++) {
+                if (peak_hold_level[i] < level[i]) {
+                    peak_hold_level[i] = level[i];
+                    peak_hold_count[i] = PEAK_HOLD_TIMES;
+                } else if (peak_hold_count[i] > 0) {
+                    peak_hold_count[i]--;
+                } else {
+                    peak_hold_level[i] = -1;
+                }
+                peak_hold[i] = peak_hold_level[i];
+            }
         }
         return true;
     }
@@ -172,7 +181,7 @@ void stop()
 }
 
 // irq handler for DMA
-void __isr __time_critical_func(level_meter_dma_irq_handler)()
+static void __isr __time_critical_func(level_meter_dma_irq_handler)()
 {
     int irq_buf_idx;
 

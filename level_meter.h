@@ -17,8 +17,8 @@
 
 namespace level_meter
 {
-    void init(const std::vector<float>& dbScale = conv_dB_level::DEFAULT_DB_SCALE);
+    void init(const std::vector<float>& db_scale = conv_dB_level::DEFAULT_DB_SCALE);
     void start();
-    bool get_level(int level[NUM_ADC_CH]);
+    bool get_level(int level[NUM_ADC_CH], int peak_hold[NUM_ADC_CH] = nullptr);
     void stop();
 }
