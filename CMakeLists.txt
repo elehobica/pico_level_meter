@@ -12,12 +12,12 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_subdirectory(st7735_80x160)
+add_subdirectory(lib/st7735_80x160)
 
 add_executable(${PROJECT_NAME}
-    main.cpp
-    level_meter.cpp
-    conv_dB_level.cpp
+    src/main.cpp
+    src/level_meter.cpp
+    src/conv_dB_level.cpp
 )
 
 # pull in common dependencies
@@ -29,6 +29,8 @@ target_link_libraries(${PROJECT_NAME}
     hardware_pwm
     st7735_80x160
 )
+
+target_include_directories(${PROJECT_NAME} INTERFACE src)
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(${PROJECT_NAME})
