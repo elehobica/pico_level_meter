@@ -9,12 +9,12 @@
 #include <cstdio>
 #include <algorithm>
 
-#include <pico/stdlib.h>
-#include <pico/util/queue.h>
-#include <hardware/adc.h>
-#include <hardware/dma.h>
-#include <hardware/irq.h>
-#include <hardware/pwm.h>
+#include "pico/stdlib.h"
+#include "pico/util/queue.h"
+#include "hardware/adc.h"
+#include "hardware/dma.h"
+#include "hardware/irq.h"
+#include "hardware/pwm.h"
 
 #include "conv_dB_level.h"
 
@@ -135,6 +135,7 @@ void init(const std::vector<float>& db_scale)
     // State to calibration
     state = State::CALIBRATION;
 }
+
 void start()
 {
     // Start DMA
@@ -146,30 +147,31 @@ void start()
 
 bool get_level(int level[NUM_ADC_CH], int peak_hold[NUM_ADC_CH])
 {
-    if (queue_get_level(&_level_queue) > 0) {
-        // Get Level
-        level_item_t levelItem;
-        queue_remove_blocking(&_level_queue, &levelItem);
-        for (int i = 0; i < NUM_ADC_CH; i++) {
-            level[i] = levelItem.level[i];
-        }
-        // Peak Hold
-        if (peak_hold != nullptr) {
-            for (int i = 0; i < NUM_ADC_CH; i++) {
-                if (peak_hold_level[i] < level[i]) {
-                    peak_hold_level[i] = level[i];
-                    peak_hold_count[i] = PEAK_HOLD_TIMES;
-                } else if (peak_hold_count[i] > 0) {
-                    peak_hold_count[i]--;
-                } else {
-                    peak_hold_level[i] = -1;
-                }
-                peak_hold[i] = peak_hold_level[i];
-            }
-        }
-        return true;
+    if (queue_get_level(&_level_queue) == 0) { return false; }
+
+    // Get Level
+    level_item_t levelItem;
+    queue_remove_blocking(&_level_queue, &levelItem);
+    for (int i = 0; i < NUM_ADC_CH; i++) {
+        level[i] = levelItem.level[i];
     }
-    return false;
+
+    if (peak_hold == nullptr) { return true; }
+
+    // Peak Hold
+    for (int i = 0; i < NUM_ADC_CH; i++) {
+        if (peak_hold_level[i] < level[i]) {
+            peak_hold_level[i] = level[i];
+            peak_hold_count[i] = PEAK_HOLD_TIMES;
+        } else if (peak_hold_count[i] > 0) {
+            peak_hold_count[i]--;
+        } else {
+            peak_hold_level[i] = -1;
+        }
+        peak_hold[i] = peak_hold_level[i];
+    }
+
+    return true;
 }
 
 void stop()
@@ -209,26 +211,29 @@ static void __isr __time_critical_func(level_meter_dma_irq_handler)()
         for (int j = start; j < end; j++) {
             sum += buf[j];
         }
-        // nomalize
+        // normalize
         float meanAve = (float) sum / (end - start);
         norm[i] = meanAve / ((1 << ADC_BITS) - 1);
         // apply calibration
         norm[i] = ADC_CALIB_A[i] * norm[i] + ADC_CALIB_B[i];
     }
 
-    // Calibration
-    if (state == State::CALIBRATION && ++calibCount >= NUM_CALIB_COUNT) {
-        for (int i = 0; i < NUM_ADC_CH; i++) {
-            // calculate calibration parameters
-            float intercept = -norm[i] * ADC_CALIB_ZERO_MARGIN;
-            ADC_CALIB_A[i] = 1.0 / (1.0 + intercept);
-            ADC_CALIB_B[i] = intercept;
-            // release force input signal
-            uint pin = PIN_ADC_BASE + PIN_ADC_OFFSET + i;
-            gpio_set_dir(pin, GPIO_IN);
+    // Zero Calibration
+    if (state == State::CALIBRATION) {
+        if (calibCount >= NUM_CALIB_COUNT) {
+            for (int i = 0; i < NUM_ADC_CH; i++) {
+                // calculate calibration parameters
+                float intercept = -norm[i] * ADC_CALIB_ZERO_MARGIN;
+                ADC_CALIB_A[i] = 1.0 / (1.0 + intercept);
+                ADC_CALIB_B[i] = intercept;
+                // release force input signal
+                uint pin = PIN_ADC_BASE + PIN_ADC_OFFSET + i;
+                gpio_set_dir(pin, GPIO_IN);
+            }
+            state = State::RUNNING;
+        } else {
+            calibCount++;
         }
-        // state transition to RUNNING
-        state = State::RUNNING;
     }
 
     unsigned int level[NUM_ADC_CH];
