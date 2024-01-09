@@ -1,9 +1,9 @@
-# Audio Level Meter for Raspberry Pi Pico
+# Audio Level Meter for rp2040
 
 ![LevelMeterScene](doc/level_meter_scene01.jpg)
 
 ## Overview
-This is Audio Level Meter library for Raspberry Pi Pico
+This is Audio Level Meter library for rp2040
 
 This project feattures:
 * Analog signal input for multiple channels (max 3 channels)
