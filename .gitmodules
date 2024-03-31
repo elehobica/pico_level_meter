@@ -1,0 +1,3 @@
+[submodule "lib/pico_st7735_80x160"]
+	path = lib/pico_st7735_80x160
+	url = git@github.com:elehobica/pico_st7735_80x160.git
