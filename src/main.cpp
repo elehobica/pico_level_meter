@@ -20,6 +20,7 @@ static int greenTh;
 static int redTh;
 
 static bool peakHoldFlag = true;
+static const u16 StrColor = GRAY;
 
 void prepareLevel()
 {
@@ -36,16 +37,18 @@ void prepareLevel()
 void drawLevelMeter(int ch, int level, int peakHold = -1)
 {
     const u16 Y_CH_HEIGHT = 10;
-    const u16 Y_OFFSET = LCD_H() / 2 - Y_CH_HEIGHT;
+    const u16 Y_GAP = 6;
+    const u16 Y_OFFSET = LCD_H() / 2 - Y_CH_HEIGHT + Y_GAP / 2;
     const u16 WIDTH = LCD_W() / NUM_LEVELS;
     const u16 X_OFFSET = (LCD_W() -  WIDTH * NUM_LEVELS) / 2;
+    const u16 X_GAP = 2;
 
     for (int i = 0; i < NUM_LEVELS; i++) {
         if (i == 0 || i < level || i == peakHold) {  // level0 is always on
             u16 color = (i < greenTh) ? GREEN : (i < redTh) ? BRRED : RED;
-            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-2 + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + 5, color);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP, color);
         } else {
-            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-2 + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + 5, DARKGRAY);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP, DARKGRAY);
         }
     }
 }
@@ -86,12 +89,27 @@ int main()
     level_meter::start();
     prepareLevel();
 
+    getchar_timeout_us(1000);  // discard input
+
     while (true) {
-        if (getchar_timeout_us(0) != PICO_ERROR_TIMEOUT) peakHoldFlag = !peakHoldFlag;  // any key to toggle peakHold
+        if (getchar_timeout_us(0) != PICO_ERROR_TIMEOUT) {  // any key to toggle peakHold
+            peakHoldFlag = !peakHoldFlag;
+            for (int i = 0; i < NUM_ADC_CH; i++) {
+                LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
+            }
+        }
         if (level_meter::get_level(level, peakHold)) {
             for (int i = 0; i < NUM_ADC_CH; i++) {
                 if (peakHoldFlag) {
                     drawLevelMeter(i, level[i], peakHold[i]);
+                    // display level by string
+                    if (peakHold[i] > 0) {
+                        char str[10];
+                        sprintf(str, "%4ddB", static_cast<int>(dbScale[peakHold[i]]));
+                        LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>(str), StrColor);
+                    } else {
+                        LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
+                    }
                 } else {
                     drawLevelMeter(i, level[i]);
                 }
