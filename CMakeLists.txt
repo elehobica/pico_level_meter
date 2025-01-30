@@ -18,6 +18,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/level_meter.cpp
     src/conv_dB_level.cpp
+    src/fm62429.cpp
 )
 
 # pull in common dependencies
@@ -32,6 +33,9 @@ target_link_libraries(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} INTERFACE
     src
 )
+
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(${PROJECT_NAME})

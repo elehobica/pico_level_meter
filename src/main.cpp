@@ -5,6 +5,7 @@
 /------------------------------------------------------*/
 
 #include "level_meter.h"
+#include "fm62429.h"
 
 #include <cstdio>
 #include <algorithm>
@@ -22,7 +23,17 @@ static int redTh;
 static bool peakHoldFlag = true;
 static const u16 StrColor = GRAY;
 
-void prepareLevel()
+static fm62429 *att = nullptr;
+static uint PIN_FM62429_CLOCK = 15;
+static uint PIN_FM62429_DATA  = 14;
+static int attDb = 0;
+
+static inline uint32_t _millis()
+{
+    return to_ms_since_boot(get_absolute_time());
+}
+
+static void prepareLevel()
 {
     {
         auto it = std::upper_bound(dbScale.cbegin(), dbScale.cend(), 0);
@@ -34,7 +45,7 @@ void prepareLevel()
     }
 }
 
-void drawLevelMeter(int ch, int level, int peakHold = -1)
+static void drawLevelMeter(int ch, int level, int peakHold = -1)
 {
     const u16 Y_CH_HEIGHT = 10;
     const u16 Y_GAP = 6;
@@ -81,6 +92,11 @@ int main()
     LCD_Clear(BLACK);
     BACK_COLOR=BLACK;
 
+    // Electronic volume (FM62429)
+    att = new fm62429(PIN_FM62429_CLOCK, PIN_FM62429_DATA);
+    att->init();
+    att->set_att_both(attDb);
+
 
     // level meter
     int level[NUM_ADC_CH];
@@ -89,13 +105,35 @@ int main()
     level_meter::start();
     prepareLevel();
 
+    // serial connection waiting (max 1 sec)
+    while (!stdio_usb_connected() && _millis() < 1000) {
+        sleep_ms(100);
+    }
+    printf("\r\n");
+
     getchar_timeout_us(1000);  // discard input
 
     while (true) {
-        if (getchar_timeout_us(0) != PICO_ERROR_TIMEOUT) {  // any key to toggle peakHold
-            peakHoldFlag = !peakHoldFlag;
-            for (int i = 0; i < NUM_ADC_CH; i++) {
-                LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
+        int chr;
+        if ((chr = getchar_timeout_us(0)) != PICO_ERROR_TIMEOUT) {  // any key to toggle peakHold
+            char c = static_cast<char>(chr);
+            if (c == 'p') {
+                peakHoldFlag = !peakHoldFlag;
+                for (int i = 0; i < NUM_ADC_CH; i++) {
+                    LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
+                }
+            } else if (c == '+' || c == '=') {
+                if (attDb < fm62429::DB_MAX) {
+                    attDb += 1;
+                    att->set_att_both(attDb);
+                    printf("%d dB\r\n", static_cast<int>(attDb));
+                }
+            } else if (c == '-') {
+                if (attDb > fm62429::DB_MIN) {
+                    attDb -= 1;
+                    att->set_att_both(attDb);
+                    printf("%d dB\r\n", static_cast<int>(attDb));
+                }
             }
         }
         if (level_meter::get_level(level, peakHold)) {

@@ -102,4 +102,8 @@ $ make -j4
 * Put "pico_level_meter.uf2" on RPI-RP2 drive
 
 ## Peak Hold
-* push any key on serial terminal to toggle peak hold mode
+* push 'p' on serial terminal to toggle peak hold mode
+
+## Attenuator
+* push '+' or '=' to decrease attenuation (level up)
+* push '-' to increase attenuation (level down)
