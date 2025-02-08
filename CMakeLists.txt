@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Target to rp2350 (Raspberry Pi Pico 2)
+set(PICO_PLATFORM rp2350)
+set(PICO_BOARD pico2)
+
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 #include($ENV{PICO_EXTRAS_PATH}/external/pico_extras_import.cmake)
 
