@@ -32,7 +32,7 @@ conv_dB_level::~conv_dB_level()
 
 float conv_dB_level::_db_to_linear(float db)
 {
-    return pow(10.0, db / 10.0);
+    return pow(10.0, db / 20.0);
 }
 
 void conv_dB_level::get_level(const float in[], unsigned int out[])
