@@ -34,6 +34,11 @@ static int      dma_irq_count = 0;
 static dma_channel_config cfg[2];
 
 static constexpr int ADC_BITS = 12;
+static constexpr int ADC_MAX = (1 << ADC_BITS) - 1;
+// RANGE_RATIO: 900mV / 3300mV
+//   This is determined by the OPAMP hardware circuit
+//   under maximum FM62429 input level without distortion
+static constexpr float RANGE_RATIO = 900.0f / 3300;
 static constexpr float ADC_CALIB_ZERO_MARGIN = 1.6;
 static float ADC_CALIB_A[NUM_ADC_CH];
 static float ADC_CALIB_B[NUM_ADC_CH];
@@ -213,9 +218,12 @@ static void __isr __time_critical_func(level_meter_dma_irq_handler)()
         }
         // normalize
         float meanAve = (float) sum / (end - start);
-        norm[i] = meanAve / ((1 << ADC_BITS) - 1);
+        norm[i] = meanAve / ADC_MAX;
         // apply calibration
         norm[i] = ADC_CALIB_A[i] * norm[i] + ADC_CALIB_B[i];
+        norm[i] /= RANGE_RATIO;
+        if (norm[i] < 0.0) { norm[i] = 0.0; }
+        if (norm[i] > 1.0) { norm[i] = 1.0; }
     }
 
     // Zero Calibration
