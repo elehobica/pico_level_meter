@@ -17,6 +17,7 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_subdirectory(lib/pico_st7735_80x160)
+add_subdirectory(lib/pico_flash_param)
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -32,6 +33,7 @@ target_link_libraries(${PROJECT_NAME}
     hardware_irq
     pico_stdlib
     pico_st7735_80x160
+    pico_flash_param
 )
 
 target_include_directories(${PROJECT_NAME} INTERFACE

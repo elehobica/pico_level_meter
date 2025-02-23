@@ -10,7 +10,9 @@
 #include <cstdio>
 #include <algorithm>
 
+#include "hardware/sync.h"
 #include "pico/stdlib.h"
+#include "ConfigParam.h"
 #include "lcd_extra.h"
 
 // dbScale (max - min <= 40, otherwise lowest scale has no meaning against 12bit ADC resolution)
@@ -26,7 +28,9 @@ static const u16 StrColor = GRAY;
 static fm62429 *att = nullptr;
 static uint PIN_FM62429_CLOCK = 15;
 static uint PIN_FM62429_DATA  = 14;
-static int attDb = 0;
+static int attDb[2] = {0, 0};
+static bool bothCh = true;
+static int curCh = 0;;
 
 static inline uint32_t _millis()
 {
@@ -64,6 +68,27 @@ static void drawLevelMeter(int ch, int level, int peakHold = -1)
     }
 }
 
+static void printHelp()
+{
+    printf("Help Message:\r\n");
+    printf(" h: Display help\r\n");
+    printf(" space: Display current settings\r\n");
+    printf(" s: Save current settings\r\n");
+    printf(" +: Increase attenuation\r\n");
+    printf(" -: Decrease attenuation\r\n");
+    printf(" p: Toggle peak hold\r\n");
+    printf(" b: Both channel\r\n");
+    printf(" l: Left channel\r\n");
+    printf(" r: Right channel\r\n");
+}
+
+static void printCurrentSettings()
+{
+    printf("[Current settings]\r\n");
+    printf(" L: %d dB, R: %d dB\r\n", static_cast<int>(attDb[0]), static_cast<int>(attDb[1]));
+    printf(" Peak hold: %s\r\n", peakHoldFlag ? "ON" : "OFF");
+}
+
 int main()
 {
     stdio_init_all();
@@ -92,11 +117,18 @@ int main()
     LCD_Clear(BLACK);
     BACK_COLOR=BLACK;
 
+    // Load configuration from Flash
+    ConfigParam& cfgParam = ConfigParam::instance();
+    cfgParam.initialize();
+    attDb[0] = cfgParam.P_CFG_ATT_DB_CH_L.get();
+    attDb[1] = cfgParam.P_CFG_ATT_DB_CH_R.get();
+    peakHoldFlag = cfgParam.P_CFG_PEAK_HOLD_MODE.get();
+
     // Electronic volume (FM62429)
     att = new fm62429(PIN_FM62429_CLOCK, PIN_FM62429_DATA);
     att->init();
-    att->set_att_both(attDb);
-
+    att->set_att(0, attDb[0]);
+    att->set_att(1, attDb[1]);
 
     // level meter
     int level[NUM_ADC_CH];
@@ -109,7 +141,12 @@ int main()
     while (!stdio_usb_connected() && _millis() < 1000) {
         sleep_ms(100);
     }
+
+    // Print initial settings
     printf("\r\n");
+    printf("Level Meter (pico_level_meter)\r\n");
+    printCurrentSettings();
+    printHelp();
 
     getchar_timeout_us(1000);  // discard input
 
@@ -117,23 +154,65 @@ int main()
         int chr;
         if ((chr = getchar_timeout_us(0)) != PICO_ERROR_TIMEOUT) {  // any key to toggle peakHold
             char c = static_cast<char>(chr);
-            if (c == 'p') {
+            if (c == 'h') {
+                printHelp();
+            } else if (c == ' ') {
+                printCurrentSettings();
+            } else if (c == 's') {
+                cfgParam.P_CFG_ATT_DB_CH_L.set(attDb[0]);
+                cfgParam.P_CFG_ATT_DB_CH_R.set(attDb[1]);
+                cfgParam.P_CFG_PEAK_HOLD_MODE.set(peakHoldFlag);
+                level_meter::stop();
+                if (cfgParam.finalize()) {
+                    printf("Save settings to flash successfully\r\n");
+                } else {
+                    printf("ERROR: failed to save settings to flash\r\n");
+                }
+                level_meter::start();
+            } else if (c == 'p') {
                 peakHoldFlag = !peakHoldFlag;
                 for (int i = 0; i < NUM_ADC_CH; i++) {
                     LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
                 }
+                if (peakHoldFlag) {
+                    printf("Peak hold: ON\r\n");
+                } else {
+                    printf("Peak hold: OFF\r\n");
+                }
+            } else if (c == 'b') {
+                bothCh = true;
+                curCh = 0;
+                printf("Ch: both\r\n");
+            } else if (c == 'l') {
+                bothCh = false;
+                curCh = 0;
+                printf("Ch: L\r\n");
+            } else if (c == 'r') {
+                bothCh = false;
+                curCh = 1;
+                printf("Ch: R\r\n");
             } else if (c == '+' || c == '=') {
-                if (attDb < fm62429::DB_MAX) {
-                    attDb += 1;
-                    att->set_att_both(attDb);
-                    printf("%d dB\r\n", static_cast<int>(attDb));
+                if (attDb[curCh] < fm62429::DB_MAX) {
+                    attDb[curCh] += 1;
                 }
+                if (bothCh) {
+                    att->set_att_both(attDb[curCh]);
+                    attDb[1 - curCh] = attDb[curCh];
+                } else {
+                    att->set_att(curCh, attDb[curCh]);
+                }
+                printf("L: %d dB, R: %d dB\r\n", static_cast<int>(attDb[0]), static_cast<int>(attDb[1]));
             } else if (c == '-') {
-                if (attDb > fm62429::DB_MIN) {
-                    attDb -= 1;
-                    att->set_att_both(attDb);
-                    printf("%d dB\r\n", static_cast<int>(attDb));
+                if (attDb[curCh] > fm62429::DB_MIN) {
+                    attDb[curCh] -= 1;
                 }
+                if (bothCh) {
+                    att->set_att_both(attDb[curCh]);
+                    attDb[1 - curCh] = attDb[curCh];
+                } else {
+                    att->set_att(curCh, attDb[curCh]);
+                }
+                printf("L: %d dB, R: %d dB\r\n", static_cast<int>(attDb[0]), static_cast<int>(attDb[1]));
             }
         }
         if (level_meter::get_level(level, peakHold)) {
