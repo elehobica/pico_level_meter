@@ -221,9 +221,13 @@ int main()
                     drawLevelMeter(i, level[i], peakHold[i]);
                     // display level by string
                     if (peakHold[i] > 0) {
-                        char str[10];
-                        sprintf(str, "%4ddB", static_cast<int>(dbScale[peakHold[i]]));
-                        LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>(str), StrColor);
+                        if (peakHold[i] < NUM_LEVELS) {
+                            char str[10];
+                            sprintf(str, "%4ddB", static_cast<int>(dbScale[peakHold[i]]));
+                            LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>(str), StrColor);
+                        } else {
+                            LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>(" OVER "), StrColor);
+                        }
                     } else {
                         LCD_ShowString(8*14, i*16*4, reinterpret_cast<const u8*>("      "), StrColor);
                     }
