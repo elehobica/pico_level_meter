@@ -56,14 +56,14 @@ static void drawLevelMeter(int ch, int level, int peakHold = -1)
     const u16 Y_OFFSET = LCD_H() / 2 - Y_CH_HEIGHT + Y_GAP / 2;
     const u16 WIDTH = LCD_W() / NUM_LEVELS;
     const u16 X_OFFSET = (LCD_W() -  WIDTH * NUM_LEVELS) / 2;
-    const u16 X_GAP = 2;
+    const u16 X_GAP = 1;
 
     for (int i = 0; i < NUM_LEVELS; i++) {
         if (i == 0 || i < level || i == peakHold) {  // level0 is always on
             u16 color = (i < greenTh) ? GREEN : (i < redTh) ? BRRED : RED;
-            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP, color);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET - 1, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP - 1, color);
         } else {
-            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP, DARKGRAY);
+            LCD_Fill(WIDTH*i + X_OFFSET, Y_OFFSET + Y_CH_HEIGHT*ch, WIDTH*i + WIDTH-X_GAP + X_OFFSET - 1, Y_OFFSET + Y_CH_HEIGHT*ch + Y_GAP - 1, DARKGRAY);
         }
     }
 }
