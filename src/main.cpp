@@ -73,13 +73,13 @@ static void printHelp()
     printf("Help Message:\r\n");
     printf(" h: Display help\r\n");
     printf(" space: Display current settings\r\n");
-    printf(" s: Save current settings\r\n");
+    printf(" s: Store current settings to Flash\r\n");
     printf(" +: Increase attenuation\r\n");
     printf(" -: Decrease attenuation\r\n");
-    printf(" p: Toggle peak hold\r\n");
-    printf(" b: Both channel\r\n");
-    printf(" l: Left channel\r\n");
-    printf(" r: Right channel\r\n");
+    printf(" b: Adjust Both channels for attenuation\r\n");
+    printf(" l: Adjust Left channel for attenuation\r\n");
+    printf(" r: Adjust Right channel for attenuation\r\n");
+    printf(" p: Toggle peak hold mode\r\n");
 }
 
 static void printCurrentSettings()
