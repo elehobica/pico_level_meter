@@ -6,8 +6,9 @@
 This is Audio Level Meter library for rp2040
 
 This project feattures:
-* Analog signal input for multiple channels (max 3 channels)
+* Analog signal inputs for 2 channels
 * Configurable dB scale steps and levels
+* Preserved input attenuator values
 
 ## Supported Board and Peripheral Devices
 * Raspberry Pi Pico 2
