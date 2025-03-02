@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 * Support FM64429 Electric Volume
 ### Changed
-* Support pico-sdk 2.1.0
+* Support pico-sdk 2.1.1
 * Change target from rp2040 (Raspberry Pi Pico) to rp2350 (Raspberry Pi Pico 2) for ADC mulfunction fix
 * Revise schematic
 
