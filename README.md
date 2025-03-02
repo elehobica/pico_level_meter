@@ -1,9 +1,9 @@
-# Audio Level Meter for rp2040
+# Audio Level Meter for rp2350
 
 ![LevelMeterScene](doc/level_meter_scene01.jpg)
 
 ## Overview
-This is Audio Level Meter library for rp2040
+This is Audio Level Meter library for rp2350
 
 This project feattures:
 * Analog signal inputs for 2 channels
@@ -29,17 +29,6 @@ This project feattures:
 ----|----|----|----
 |19 | GP14 | GPIO | PIN_FM62429_DATA |
 |20 | GP15 | GPIO | PIN_FM62429_CLOCK |
-
-### ST7735S 80x160 LCD (Waveshare RP2040-LCD-0.96 Board)
-
-| Pin # | Pin Name | Function | Signal Name |
-----|----|----|----
-|11 | GP8 | GPIO | DC |
-|12 | GP9 | SPI1_CSn | CS |
-|14 | GP10 | SPI1_SCK | SCL |
-|15 | GP11 | SPI1_TX | DIN |
-|16 | GP12 | GPIO | RST |
-|-- | GP25 | GPIO | BL |
 
 ## Schematic
 The frontend analog circuit should be needed.
