@@ -21,8 +21,26 @@ public:
     * @param pin_data GPIO pin number for data
     */
     fm62429(const uint pin_clock, const uint pin_data) : _pin_clock(pin_clock), _pin_data(pin_data) {}
+
+    /**
+    * @brief initialization of fm62429
+    *
+    */
     void init();
+
+    /**
+    * @brief set attenuation level of fm62429 for a channel
+    *
+    * @param ch channel number (0 or 1)
+    * @param db attenuation level in dB (DB_MIN <= db <= DB_MAX)
+    */
     void set_att(const uint8_t ch, const int8_t db);
+
+    /**
+    * @brief set attenuation level of fm62429 for both channels
+    *
+    * @param db attenuation level in dB (DB_MIN <= db <= DB_MAX)
+    */
     void set_att_both(const int8_t db);
 
 private:
