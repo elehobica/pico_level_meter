@@ -6,15 +6,30 @@
 This is Audio Level Meter library for rp2040
 
 This project feattures:
-* Analog signal input for multiple channels (max 3 channels)
+* Analog signal inputs for 2 channels
 * Configurable dB scale steps and levels
+* Preserved input attenuator values
 
-## Supported Board
-* Waveshare RP2040-LCD-0.96 Board (ST7735S 80x160 LCD build-in)
-or
-* Raspberry Pi Pico + ST7735S 80x160 LCD
+## Supported Board and Peripheral Devices
+* Raspberry Pi Pico 2
+* M62429 / FM62429 Electric Volume
+* ST7735S 80x160 LCD
 
 ## Pin Assignment
+### Audio Input
+
+| Pin # | Pin Name | Function | Signal Name |
+----|----|----|----
+|31 | GP26 | ADC0 | L_IN |
+|32 | GP27 | ADC1 | R_IN |
+
+### M62429 / FM62429 Electric Volume
+
+| Pin # | Pin Name | Function | Signal Name |
+----|----|----|----
+|19 | GP14 | GPIO | PIN_FM62429_DATA |
+|20 | GP15 | GPIO | PIN_FM62429_CLOCK |
+
 ### ST7735S 80x160 LCD (Waveshare RP2040-LCD-0.96 Board)
 
 | Pin # | Pin Name | Function | Signal Name |
@@ -35,15 +50,15 @@ The frontend analog circuit should be needed.
 * See ["Getting started with Raspberry Pi Pico"](https://datasheets.raspberrypi.org/pico/getting-started-with-pico.pdf)
 * Put "pico-sdk", "pico-examples" and "pico-extras" on the same level with this project folder.
 * Set environmental variables for PICO_SDK_PATH, PICO_EXTRAS_PATH and PICO_EXAMPLES_PATH
-* Confirmed with Pico SDK 2.0.0
+* Confirmed with Pico SDK 2.1.0
 ```
-> git clone -b 2.0.0 https://github.com/raspberrypi/pico-sdk.git
+> git clone -b 2.1.0 https://github.com/raspberrypi/pico-sdk.git
 > cd pico-sdk
 > git submodule update -i
 > cd ..
-> git clone -b sdk-2.0.0 https://github.com/raspberrypi/pico-examples.git
+> git clone -b sdk-2.1.0 https://github.com/raspberrypi/pico-examples.git
 >
-> git clone -b sdk-2.0.0 https://github.com/raspberrypi/pico-extras.git
+> git clone -b sdk-2.1.0 https://github.com/raspberrypi/pico-extras.git
 > 
 > git clone -b main https://github.com/elehobica/pico_level_meter.git
 > cd pico_level_meter
@@ -62,7 +77,7 @@ The frontend analog circuit should be needed.
 ```
 * Put "pico_level_meter.uf2" on RPI-RP2 drive
 ### Linux
-* Build is confirmed with [pico-sdk-dev-docker:sdk-2.0.0-1.0.0]( https://hub.docker.com/r/elehobica/pico-sdk-dev-docker)
+* Build is confirmed with [pico-sdk-dev-docker:sdk-2.1.0-1.0.0]( https://hub.docker.com/r/elehobica/pico-sdk-dev-docker)
 * Confirmed with cmake-3.22.1 and arm-none-eabi-gcc (15:10.3-2021.07-4) 10.3.1
 ```
 $ cd pico_level_meter
@@ -101,5 +116,12 @@ $ make -j4
 ```
 * Put "pico_level_meter.uf2" on RPI-RP2 drive
 
-## Peak Hold
-* push any key on serial terminal to toggle peak hold mode
+### Serial interface usage
+* type ' ' to display current settings
+* type 's' to store current settings to Flash
+* type '+' or '=' to decrease attenuation (level up)
+* type '-' to increase attenuation (level down)
+* type 'b' to adjust attenuation for both channels
+* type 'l' to adjust attenuation for left channel
+* type 'r' to adjust attenuation for right channel
+* type 'p' to toggle peak hold mode
