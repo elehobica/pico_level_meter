@@ -5,8 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [1.0.2] - 2025-04-28
 ### Added
 * Support FM64429 Electric Volume
+* Add GitHub Actions for build and release
 ### Changed
 * Support pico-sdk 2.1.1
 * Change target from rp2040 (Raspberry Pi Pico) to rp2350 (Raspberry Pi Pico 2) for ADC mulfunction fix

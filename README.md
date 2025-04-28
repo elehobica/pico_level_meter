@@ -2,6 +2,8 @@
 
 ![LevelMeterScene](doc/level_meter_scene01.jpg)
 
+[![Build](https://github.com/elehobica/pico_level_meter/actions/workflows/build-binaries.yml/badge.svg)](https://github.com/elehobica/pico_level_meter/actions/workflows/build-binaries.yml)
+
 ## Overview
 This is Audio Level Meter library for rp2350
 
