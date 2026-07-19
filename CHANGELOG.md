@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+* Add build_docker.sh
+### Changed
+* Support pico-sdk 2.3.0
 
 ## [1.0.2] - 2025-04-28
 ### Added
